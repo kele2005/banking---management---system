@@ -1,100 +1,60 @@
-#include "teller.h"
-#include "globals.h"
-#include "utils.h"
-#include <iostream>
-#include <fstream>
-#include <cstring>
+# Multi-Branch Banking Management System
 
-// ─── Teller Constructor ───────────────────────────────────────────────────────
-Teller::Teller() {
-    std::memset(tellerID,          0, sizeof(tellerID));
-    std::memset(fullName,          0, sizeof(fullName));
-    std::memset(encryptedPassword, 0, sizeof(encryptedPassword));
-    std::memset(branchCode,        0, sizeof(branchCode));
-    isActive = true;
-}
+A console-based banking management system built in C++, simulating multi-branch operations for tellers and customers — account creation, transactions, and reporting.
 
-Teller::Teller(const std::string& id, const std::string& name,
-               const std::string& plainPassword, const std::string& branch) {
-    std::memset(tellerID,          0, sizeof(tellerID));
-    std::memset(fullName,          0, sizeof(fullName));
-    std::memset(encryptedPassword, 0, sizeof(encryptedPassword));
-    std::memset(branchCode,        0, sizeof(branchCode));
+## Overview
 
-    std::strncpy(tellerID,   id.c_str(),     sizeof(tellerID)-1);
-    std::strncpy(fullName,   name.c_str(),   sizeof(fullName)-1);
-    std::strncpy(branchCode, branch.c_str(), sizeof(branchCode)-1);
-    isActive = true;
+This project models how a retail bank might handle day-to-day branch operations from the command line: tellers register and manage customers, customers log in to their own accounts to transact, and branch managers can pull reports across the system.
 
-    // Encrypt and store password
-    std::string enc = Utils::encrypt(plainPassword);
-    std::strncpy(encryptedPassword, enc.c_str(), sizeof(encryptedPassword)-1);
-}
+## Features
 
-bool Teller::verifyPassword(const std::string& plainPassword) const {
-    std::string enc = Utils::encrypt(plainPassword);
-    return enc == std::string(encryptedPassword);
-}
+- **Teller operations**: register new customers, look up and search accounts, process transactions, apply interest, and branch-restricted access (tellers only manage accounts within their own branch)
+- **Customer accounts**: four account types (Savings, Cheque, Fixed Deposit, Student) with type-specific minimum deposits and interest rates
+- **Customer self-service**: balance check, deposit, withdraw, transfer between accounts, view statement, change PIN
+- **Security**: PIN-protected login with account lockout after repeated failed attempts, encrypted credential storage, auto-generated account numbers and PINs
+- **Reporting**: daily transaction reports, customer account summaries, branch performance reports, and CSV export of transactions/customers
+- **Persistence**: account, transaction, and branch data stored to disk between sessions, with automatic backups
 
-// ─── TellerManager ────────────────────────────────────────────────────────────
-TellerManager::TellerManager() {}
+## Tech Stack
 
-bool TellerManager::loadTellers() {
-    std::ifstream file(FILE_TELLERS, std::ios::binary);
-    if (!file.is_open()) return false;
+- **Language**: C++17
+- **Structure**: Object-oriented — separate classes for accounts, tellers, branches, transactions, and customer management, coordinated through a menu-driven controller
+- **Storage**: Flat binary/text data files (no external database or libraries required)
 
-    tellers_.clear();
-    Teller t;
-    while (file.read(reinterpret_cast<char*>(&t), sizeof(Teller))) {
-        tellers_.push_back(t);
-    }
-    file.close();
-    return !tellers_.empty();
-}
+## Getting Started
 
-bool TellerManager::saveTellers() {
-    std::ofstream file(FILE_TELLERS, std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) return false;
+```bash
+# Linux / macOS
+g++ -std=c++17 -Wall -o banking src/main.cpp src/utils.cpp src/branch.cpp \
+    src/teller.cpp src/account.cpp src/transaction.cpp \
+    src/customer_manager.cpp src/menu.cpp -I include
+./banking
+```
 
-    for (const auto& t : tellers_) {
-        file.write(reinterpret_cast<const char*>(&t), sizeof(Teller));
-    }
-    file.close();
-    return true;
-}
+```powershell
+# Windows (MinGW)
+g++ -std=c++17 -Wall -o banking.exe src/main.cpp src/utils.cpp src/branch.cpp ^
+    src/teller.cpp src/account.cpp src/transaction.cpp ^
+    src/customer_manager.cpp src/menu.cpp -I include
+banking.exe
+```
 
-void TellerManager::initDefaultTellers() {
-    if (!tellers_.empty()) return;
+Data directories (`data/`, `data/backup/`, `exports/`) are created automatically on first run.
 
-    // Default tellers for each branch
-    tellers_.emplace_back("T001", "Fortunate Sibiya",  "teller123", "JHB");
-    tellers_.emplace_back("T002", "Morwakgadi Mmamabolo",   "teller456", "CPT");
-    tellers_.emplace_back("T003", "Nkateko Nkuna",    "teller789", "DBN");
-    tellers_.emplace_back("T004", "Kelebogile Rangata", "admin001",  "JHB");
+### Demo teller login
 
-    saveTellers();
-}
+| Teller ID | Password | Branch |
+|---|---|---|
+| T001 | teller123 | Johannesburg |
+| T002 | teller456 | Cape Town |
+| T003 | teller789 | Durban |
 
-Teller* TellerManager::authenticate(const std::string& id, const std::string& password) {
-    for (auto& t : tellers_) {
-        if (std::string(t.tellerID) == id && t.isActive) {
-            if (t.verifyPassword(password)) {
-                return &t;
-            }
-        }
-    }
-    return nullptr;
-}
+## What I learned
 
-bool TellerManager::tellerExists(const std::string& id) const {
-    for (const auto& t : tellers_) {
-        if (std::string(t.tellerID) == id) return true;
-    }
-    return false;
-}
+Building this reinforced object-oriented design in C++ (separating concerns across account, teller, transaction, and branch classes), file-based data persistence, input validation, and thinking through basic security practices like credential encryption and account lockouts.
 
-bool TellerManager::addTeller(const Teller& t) {
-    if (tellerExists(t.getID())) return false;
-    tellers_.push_back(t);
-    return saveTellers();
-}
+## Possible extensions
+
+- Replace flat-file storage with a proper database (SQLite/MySQL)
+- Add unit tests for transaction and validation logic
+- Build a simple web or GUI front end on top of the existing core logic
